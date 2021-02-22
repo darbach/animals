@@ -1,5 +1,6 @@
 package edu.cnm.deepdive.animals;
 
+import android.os.AsyncTask;
 import android.util.Log;
 import android.view.View;
 import android.webkit.WebResourceRequest;
@@ -60,35 +61,41 @@ public class MainActivity extends AppCompatActivity {
     settings.setDisplayZoomControls(false);
     settings.setUseWideViewPort(true);
     settings.setLoadWithOverviewMode(true);
-    new Retriever().start();
+    new RetrieverTask().execute();
   }
 
-  private class Retriever extends Thread {
+  private class RetrieverTask extends AsyncTask<Void, Void, List<Animal>> {
 
     @Override
-    public void run() {
+    protected void onPostExecute(List<Animal> animals) { // updating UI when background task done
+      super.onPostExecute(animals);
+      String url = animals.get(0).getImageUrl();
+      adapter = new ArrayAdapter<>(MainActivity.this,
+          R.layout.item_animal_spinner, animals);
+      adapter.setDropDownViewResource(android.R.layout.simple_spinner_item);
+      contentView.loadUrl(url);
+      animalSelector.setAdapter(adapter);
+    }
+
+    @Override
+    protected List<Animal> doInBackground(Void... voids) { //
       try {
         Response<List<Animal>> response = WebServiceProxy.getInstance()
             .getAnimals(BuildConfig.API_KEY)
             .execute();
         if (response.isSuccessful()) {
-          List<Animal> animals = response.body();
-          //noinspection ConstantConditions
-          String url = animals.get(0).getImageUrl();
-          adapter = new ArrayAdapter<>(MainActivity.this,
-              R.layout.item_animal_spinner, animals);
-          adapter.setDropDownViewResource(android.R.layout.simple_spinner_item);
-          // run on the UI thread, so android doesn't crash the app
-          runOnUiThread(() -> {
-            contentView.loadUrl(url);
-            animalSelector.setAdapter(adapter);
-          });
+          return response.body();
         } else {
           Log.e(getClass().getName(), response.message());
+          cancel(true);
+          return null;
         }
       } catch (IOException e) {
         Log.e(getClass().getName(), e.getMessage(), e);
+        cancel(true);
+        return null;
       }
     }
+
   }
 }
