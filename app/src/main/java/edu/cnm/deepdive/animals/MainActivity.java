@@ -1,20 +1,49 @@
 package edu.cnm.deepdive.animals;
 
 import android.util.Log;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import edu.cnm.deepdive.animals.model.Animal;
 import edu.cnm.deepdive.animals.service.WebServiceProxy;
 import java.io.IOException;
 import java.util.List;
+import java.util.Random;
 import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
+
+  private WebView contentView;
+  private Spinner animalSelector;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
+    contentView = findViewById(R.id.content_view);
+    animalSelector = findViewById(R.id.animal_selector); // our spinner in the .xml view
+    this.setupWebView();
+  }
+
+  private void setupWebView() {
+    //change behavior webviewclient so it doesn't try to open URL in an external browser
+    contentView.setWebViewClient(new WebViewClient() {
+      @Override
+      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+        return false;
+      }
+    });
+    WebSettings settings = contentView.getSettings();
+    settings.setSupportZoom(true);
+    settings.setBuiltInZoomControls(true);
+    settings.setDisplayZoomControls(false);
+    settings.setUseWideViewPort(true);
+    settings.setLoadWithOverviewMode(true);
     new Retriever().start();
   }
 
@@ -27,7 +56,17 @@ public class MainActivity extends AppCompatActivity {
             .getAnimals(BuildConfig.API_KEY)
             .execute();
         if (response.isSuccessful()) {
-          Log.d(getClass().getName(), response.body().toString());
+          List<Animal> animals = response.body();
+          Random rng = new Random();
+          //noinspection ConstantConditions
+          String url = animals.get(rng.nextInt(animals.size())).getImageUrl();
+          // run on the UI thread, so android doesn't crash the app
+          runOnUiThread(() -> {
+            contentView.loadUrl(url);
+            ArrayAdapter<Animal> adapter = new ArrayAdapter<>(MainActivity.this,
+                android.R.layout.simple_dropdown_item_1line, animals);
+            animalSelector.setAdapter(adapter);
+          });
         } else {
           Log.e(getClass().getName(), response.message());
         }
