@@ -1,10 +1,13 @@
 package edu.cnm.deepdive.animals;
 
 import android.util.Log;
+import android.view.View;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import androidx.appcompat.app.AppCompatActivity;
@@ -20,6 +23,7 @@ public class MainActivity extends AppCompatActivity {
 
   private WebView contentView;
   private Spinner animalSelector;
+  private ArrayAdapter<Animal> adapter;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -27,6 +31,18 @@ public class MainActivity extends AppCompatActivity {
     setContentView(R.layout.activity_main);
     contentView = findViewById(R.id.content_view);
     animalSelector = findViewById(R.id.animal_selector); // our spinner in the .xml view
+    animalSelector.setOnItemSelectedListener(new OnItemSelectedListener() {
+      @Override
+      public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+        Animal animal = (Animal) parent.getItemAtPosition(position);
+        contentView.loadUrl(animal.getImageUrl());
+      }
+
+      @Override
+      public void onNothingSelected(AdapterView<?> parent) {
+        // Do nothing.
+      }
+    });
     this.setupWebView();
   }
 
@@ -57,14 +73,14 @@ public class MainActivity extends AppCompatActivity {
             .execute();
         if (response.isSuccessful()) {
           List<Animal> animals = response.body();
-          Random rng = new Random();
           //noinspection ConstantConditions
-          String url = animals.get(rng.nextInt(animals.size())).getImageUrl();
+          String url = animals.get(0).getImageUrl();
+          adapter = new ArrayAdapter<>(MainActivity.this,
+              R.layout.item_animal_spinner, animals);
+          adapter.setDropDownViewResource(android.R.layout.simple_spinner_item);
           // run on the UI thread, so android doesn't crash the app
           runOnUiThread(() -> {
             contentView.loadUrl(url);
-            ArrayAdapter<Animal> adapter = new ArrayAdapter<>(MainActivity.this,
-                android.R.layout.simple_dropdown_item_1line, animals);
             animalSelector.setAdapter(adapter);
           });
         } else {
